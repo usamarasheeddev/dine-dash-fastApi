@@ -1,11 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, create_db_and_tables
 from app.routes import auth, branches, companies, customers, products, inventory, ledgers, orders, tables, waiters, service_requests, users, dashboard
+from app import models  # Ensure all models are registered
 import uvicorn
+from contextlib import asynccontextmanager
 
-app = FastAPI(title=settings.PROJECT_NAME)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create tables on startup
+    await create_db_and_tables()
+    yield
+
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,4 +42,10 @@ async def root():
     return {"message": "Welcome to Dine-Dash API"}
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=settings.PORT, reload=True)
+    import sys
+    if getattr(sys, 'frozen', False):
+        # Running as a bundled executable
+        uvicorn.run(app, host="0.0.0.0", port=settings.PORT)
+    else:
+        # Running in development mode
+        uvicorn.run("app.main:app", host="0.0.0.0", port=settings.PORT, reload=True)

@@ -37,6 +37,7 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
     )
     
     return {
+        "success": True,
         "access_token": access_token,
         "token_type": "bearer",
         "user_details": {
@@ -124,10 +125,13 @@ async def update_profile(
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPasswordRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    print(f"Forgot password request received for: {data.email}")
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalars().first()
+    
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There is no user with that email address.")
+        # Return success even if user not found to prevent user enumeration
+        return {"success": True, "message": "If there is an account associated with this email, a reset link will be sent."}
     
     reset_token = secrets.token_hex(32)
     hashed_token = hashlib.sha256(reset_token.encode()).hexdigest()
@@ -139,7 +143,7 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request, db: Asy
     origin = request.headers.get("origin", "http://localhost:5173")
     reset_url = f"{origin}/reset-password/{reset_token}"
     
-    message = f"You are receiving this email because you (or someone else) have requested the reset of a password. Please make a PUT request to: \n\n {reset_url}"
+    message = f"You are receiving this email because you (or someone else) have requested the reset of a password. Please click the link below or copy and paste it into your browser to complete the process: \n\n {reset_url}"
     html = f"<p>You requested a password reset</p><p>Click this <a href='{reset_url}'>link</a> to set a new password.</p><p>This link is valid for 1 hour.</p>"
     
     try:

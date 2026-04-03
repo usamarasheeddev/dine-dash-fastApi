@@ -14,3 +14,9 @@ Base = declarative_base()
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
+
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        # Import all models here or ensure they are imported in main.py
+        # to register them with Base.metadata
+        await conn.run_sync(Base.metadata.create_all)

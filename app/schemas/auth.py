@@ -31,6 +31,7 @@ class UserOut(UserBase):
         from_attributes = True
 
 class Token(BaseModel):
+    success: bool = True
     access_token: str
     token_type: str
     user_details: dict
