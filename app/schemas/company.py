@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic.alias_generators import to_camel
 from typing import Optional, Dict, Any
 from datetime import datetime
 from decimal import Decimal
@@ -20,6 +21,12 @@ class CompanyBase(BaseModel):
     receipt_footer: Optional[str] = None
     order_types: Dict[str, bool] = {"dineIn": True, "takeaway": True, "delivery": True}
     kitchen_enabled: bool = False
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
 
 class CompanyCreate(BaseModel):
     companyName: str
@@ -51,7 +58,9 @@ class CompanyOut(CompanyBase):
     updated_at: datetime
 
     class Config:
-        from_attributes = True
+        pass
+    
+    # model_config already inherited from CompanyBase
 
 class DashboardStats(BaseModel):
     totalCompanies: int
@@ -61,3 +70,7 @@ class DashboardStats(BaseModel):
     expiringSoon: int
     pendingRequests: int
     totalUsers: int
+
+    model_config = ConfigDict(
+        populate_by_name=True
+    )

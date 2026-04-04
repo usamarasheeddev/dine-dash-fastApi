@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from decimal import Decimal
@@ -6,6 +7,12 @@ from decimal import Decimal
 class ProductCategoryBase(BaseModel):
     name: str
     image: Optional[str] = None
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
 
 class ProductCategoryCreate(ProductCategoryBase):
     pass
@@ -18,9 +25,12 @@ class ProductCategoryOut(ProductCategoryBase):
     id: int
     company_id: int
     created_at: datetime
-
-    class Config:
-        from_attributes = True
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
 
 class ProductBase(BaseModel):
     name: str
@@ -34,6 +44,12 @@ class ProductBase(BaseModel):
     variations: List[Dict[str, Any]] = []
     addons: List[Dict[str, Any]] = []
     active: bool = True
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
 
 class ProductCreate(ProductBase):
     pass
@@ -51,6 +67,11 @@ class ProductUpdate(BaseModel):
     addons: Optional[List[Dict[str, Any]]] = None
     active: Optional[bool] = None
 
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
+
 class ProductOut(ProductBase):
     id: int
     company_id: int
@@ -58,5 +79,8 @@ class ProductOut(ProductBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )

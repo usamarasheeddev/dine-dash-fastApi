@@ -39,13 +39,10 @@ async def add_item(
     new_item = InventoryItem(
         company_id=current_user.company_id,
         name=item_data.name,
-        category=item_data.category or "",
         unit=item_data.unit or "piece",
-        quantity=item_data.quantity,
+        current_stock=item_data.quantity,
         min_stock=item_data.min_stock,
-        cost_per_unit=item_data.cost_per_unit,
-        supplier=item_data.supplier or "",
-        product_id=item_data.product_id
+        cost_price=item_data.cost_per_unit,
     )
     db.add(new_item)
     await db.commit()
@@ -73,9 +70,15 @@ async def update_item(
         raise HTTPException(status_code=404, detail="Inventory item not found")
     
     update_dict = item_data.dict(exclude_unset=True)
+    # Map schema field names to model column names
+    field_map = {
+        "quantity": "current_stock",
+        "cost_per_unit": "cost_price",
+    }
     for key, value in update_dict.items():
-        # Mapping snake_case camelCase if necessary, but here they match or logic handles them
-        setattr(item, key, value)
+        model_key = field_map.get(key, key)
+        if hasattr(item, model_key):
+            setattr(item, model_key, value)
         
     await db.commit()
     await db.refresh(item)
@@ -116,7 +119,7 @@ async def add_stock_movement(
     if parsed_quantity <= 0:
         raise HTTPException(status_code=400, detail="Invalid quantity")
         
-    previous_stock = float(item.quantity or 0)
+    previous_stock = float(item.current_stock or 0)
     new_stock = previous_stock
     quantity_change = 0
     
@@ -133,7 +136,7 @@ async def add_stock_movement(
     else:
         raise HTTPException(status_code=400, detail="Invalid movement type")
         
-    item.quantity = new_stock
+    item.current_stock = new_stock
     
     ledger = InventoryLedger(
         inventory_item_id=item.id,

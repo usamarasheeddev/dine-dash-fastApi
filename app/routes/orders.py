@@ -16,13 +16,13 @@ from app.models.inventory_ledger import InventoryLedger
 from app.models.table import Table
 from app.models.user import User
 from app.schemas.order import (
-    OrderCreate, OrderOut, OrderUpdateStatus, OrderPay, OrderReportOut
+    OrderCreate, OrderOut, OrderUpdateStatus, OrderPay, OrderReportOut, OrdersResponse
 )
 from app.api.deps import get_current_user
 
 router = APIRouter()
 
-@router.get("/", response_model=Dict[str, Any])
+@router.get("/", response_model=OrdersResponse)
 async def get_orders(
     search: Optional[str] = None,
     status: Optional[str] = None,
@@ -67,9 +67,9 @@ async def get_orders(
     
     return {
         "orders": orders,
-        "totalCount": total_count,
-        "totalPages": (total_count + limit - 1) // limit,
-        "currentPage": page
+        "total_count": total_count,
+        "total_pages": (total_count + limit - 1) // limit if limit > 0 else 1,
+        "current_page": page
     }
 
 @router.post("/", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
@@ -116,30 +116,30 @@ async def create_order(
             if product:
                 product.stock_quantity = (product.stock_quantity or 0) - item.quantity
                 
-                # Auto-deduct inventory
-                inv_result = await db.execute(
-                    select(InventoryItem).where(
-                        InventoryItem.product_id == product.id,
-                        InventoryItem.company_id == current_user.company_id
+                if product.inventory_item_id:
+                    inv_result = await db.execute(
+                        select(InventoryItem).where(
+                            InventoryItem.id == product.inventory_item_id,
+                            InventoryItem.company_id == current_user.company_id
+                        )
                     )
-                )
-                inv_item = inv_result.scalars().first()
-                if inv_item:
-                    previous_stock = float(inv_item.quantity or 0)
-                    new_stock = previous_stock - float(item.quantity)
-                    inv_item.quantity = new_stock
+                    inv_item = inv_result.scalars().first()
+                    if inv_item:
+                        previous_stock = float(inv_item.current_stock or 0)
+                        new_stock = previous_stock - float(item.quantity)
+                        inv_item.current_stock = new_stock
                     
-                    ledger = InventoryLedger(
-                        inventory_item_id=inv_item.id,
-                        company_id=current_user.company_id,
-                        user_id=current_user.id,
-                        type="deduction",
-                        quantity_change=-float(item.quantity),
-                        previous_stock=previous_stock,
-                        new_stock=new_stock,
-                        note=f"Auto-deducted for POS Order (Product: {product.name})"
-                    )
-                    db.add(ledger)
+                        ledger = InventoryLedger(
+                            inventory_item_id=inv_item.id,
+                            company_id=current_user.company_id,
+                            user_id=current_user.id,
+                            type="deduction",
+                            quantity_change=-float(item.quantity),
+                            previous_stock=previous_stock,
+                            new_stock=new_stock,
+                            note=f"Auto-deducted for POS Order (Product: {product.name})"
+                        )
+                        db.add(ledger)
                     
         # Update Table status
         if order_data.order_type == "dine-in" and order_data.table_id:
@@ -300,7 +300,7 @@ async def get_report(
             for i in o.items:
                 name = i.product.name if i.product else "Unknown Product"
                 if name not in product_map:
-                    product_map[name] = {"name": name, "qty": 0, "revenue": 0, "variations": {}, "addons": {}}
+                    product_map[name] = {"name": name, "qty": 0, "revenue": 0, "variations": [], "addons": []}
                 product_map[name]["qty"] += float(i.quantity)
                 product_map[name]["revenue"] += float(i.total)
                 
@@ -336,5 +336,5 @@ async def get_report(
         }
         
     except Exception as e:
-        console.error(f"Reports API Error: {str(e)}")
+        print(f"Reports API Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Server error retrieving reports")

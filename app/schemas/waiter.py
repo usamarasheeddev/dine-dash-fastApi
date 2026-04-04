@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 from typing import Optional, List
 from datetime import datetime
 
@@ -28,8 +29,17 @@ class WaiterOut(WaiterBase):
     class BranchOut(BaseModel):
         id: int
         name: str
+
+        model_config = ConfigDict(
+            from_attributes=True,
+            populate_by_name=True,
+            alias_generator=to_camel
+        )
         
     branch: Optional[BranchOut] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )

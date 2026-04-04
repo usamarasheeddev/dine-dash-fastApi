@@ -7,10 +7,12 @@ class Table(Base):
     __tablename__ = "tables"
 
     id = Column(Integer, primary_key=True, index=True)
-    table_number = Column(String)
+    table_no = Column(String)
     capacity = Column(Integer)
     status = Column(String, default="available")
+    location = Column(String, nullable=True)
     branch_id = Column(Integer, ForeignKey("branches.id"))
+    company_id = Column(Integer, ForeignKey("companies.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

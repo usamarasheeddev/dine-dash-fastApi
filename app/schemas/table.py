@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 from typing import Optional, List
 from datetime import datetime
 
@@ -8,6 +9,12 @@ class TableBase(BaseModel):
     location: Optional[str] = ""
     branch_id: int
     status: str = "available"
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
 
 class TableCreate(TableBase):
     pass
@@ -19,6 +26,11 @@ class TableUpdate(BaseModel):
     branch_id: Optional[int] = None
     status: Optional[str] = None
 
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
+
 class TableOut(TableBase):
     id: int
     company_id: int
@@ -28,8 +40,17 @@ class TableOut(TableBase):
     class BranchOut(BaseModel):
         id: int
         name: str
+
+        model_config = ConfigDict(
+            from_attributes=True,
+            populate_by_name=True,
+            alias_generator=to_camel
+        )
         
     branch: Optional[BranchOut] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel
+    )
