@@ -42,4 +42,17 @@ async def get_current_user(
     
     if user is None:
         raise credentials_exception
+
+    # Check Company Status (Exempt superadmins)
+    if user.role != 'superadmin' and user.companyId:
+        from app.models.core import Company
+        res = await db.execute(select(Company).where(Company.id == user.companyId))
+        company = res.scalar_one_or_none()
+        if not company or company.status != 'active':
+            status_label = company.status if company else 'inactive'
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access blocked: Your company account is {status_label}. Please contact support."
+            )
+
     return user
