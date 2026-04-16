@@ -179,3 +179,37 @@ async def update_company(
     await db.commit()
     await db.refresh(company)
     return {"message": "Company updated successfully", "company": company}
+@router.post("/renew")
+async def renew_subscription(
+    current_user: User = Depends(RoleChecker(["admin", "superadmin"])),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Company).where(Company.id == current_user.company_id))
+    company = result.scalars().first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+        
+    price_map = {"basic": 50, "premium": 150, "enterprise": 500}
+    price = price_map.get(company.subscription_plan, 50)
+    
+    # Logic: If already expired, start from now. If not, append to current expiry.
+    now = datetime.utcnow()
+    new_expiry = now
+    
+    if company.expiry_date and company.expiry_date > now:
+        new_expiry = company.expiry_date
+        
+    new_expiry = new_expiry + timedelta(days=30)
+    
+    company.expiry_date = new_expiry
+    company.subscription_price = price
+    company.status = "active" # Re-activate if it was disabled due to expiry
+    
+    await db.commit()
+    await db.refresh(company)
+    
+    return {
+        "message": "Subscription renewed successfully", 
+        "expiryDate": company.expiry_date,
+        "subscriptionPlan": company.subscription_plan
+    }

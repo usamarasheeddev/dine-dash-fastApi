@@ -54,5 +54,12 @@ async def get_current_user(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access blocked: Your company account is {status_label}. Please contact support."
             )
+            
+        # Check Subscription Expiry
+        if company.expiryDate and datetime.utcnow() > company.expiryDate:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access blocked: Your subscription has expired on {company.expiryDate.strftime('%Y-%m-%d')}. Please renew to continue."
+            )
 
     return user
