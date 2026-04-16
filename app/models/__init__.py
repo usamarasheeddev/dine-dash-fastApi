@@ -1,9 +1,9 @@
 from .base import Base
-from .core import Company, Branch, User, Waiter, Table
+from .core import Company, Branch, User, Waiter, Table, ServiceRequest
 from .products import ProductCategory, Product
 from .customers import Customer, CustomerLedger, Voucher
 from .inventory import InventoryItem, InventoryLedger
-from .orders import Order, OrderItem, ServiceRequest
+from .orders import Order, OrderItem
 
 __all__ = [
     "Base",

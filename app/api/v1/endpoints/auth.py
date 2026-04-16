@@ -7,10 +7,9 @@ from sqlalchemy import select
 from app.api import deps
 from app.core import security
 from app.core.config import settings
-from app.models.core import User
+from app.models.core import User, ServiceRequest
 from app.schemas.core import Token, LoginRequest, UserUpdate
 from app.schemas.business import ServiceRequestCreate
-from app.models.orders import ServiceRequest
 
 router = APIRouter()
 

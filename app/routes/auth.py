@@ -30,6 +30,17 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Invalid credentials"
         )
     
+    # Check Company Status (Exempt superadmins)
+    if user.role != 'superadmin' and user.company_id:
+        result = await db.execute(select(Company).where(Company.id == user.company_id))
+        company = result.scalars().first()
+        if not company or company.status != 'active':
+            status_label = company.status if company else 'inactive'
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Login blocked: Your company account is {status_label}. Please contact support."
+            )
+    
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"id": user.id, "role": user.role, "companyId": user.company_id},
