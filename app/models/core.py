@@ -52,6 +52,7 @@ class User(Base, TimestampMixin):
     companyId: Mapped[int] = mapped_column(Integer, ForeignKey("Companies.id"))
     resetPasswordToken: Mapped[Optional[str]] = mapped_column(String)
     resetPasswordExpires: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String, default="active")
     
     company = relationship("Company", back_populates="users")
 

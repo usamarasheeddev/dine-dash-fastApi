@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -43,6 +44,13 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    # Check User Status
+    if user.status == "inactive":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Your account is inactive. Please contact your administrator."
+        )
+
     # Check Company Status (Exempt superadmins)
     if user.role != 'superadmin' and user.companyId:
         from app.models.core import Company
@@ -56,7 +64,7 @@ async def get_current_user(
             )
             
         # Check Subscription Expiry
-        if company.expiryDate and datetime.utcnow() > company.expiryDate:
+        if company.expiryDate and datetime.now(timezone.utc).replace(tzinfo=None) > company.expiryDate:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access blocked: Your subscription has expired on {company.expiryDate.strftime('%Y-%m-%d')}. Please renew to continue."

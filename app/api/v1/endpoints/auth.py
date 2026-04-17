@@ -35,6 +35,33 @@ async def login(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid credentials"
         )
+
+    # Check User Status
+    if user.status == "inactive":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been deactivated. Please contact your administrator."
+        )
+
+    # Check Company Status (Exempt superadmins)
+    if user.role != 'superadmin' and user.companyId:
+        from app.models.core import Company
+        from datetime import datetime, timezone
+        res = await db.execute(select(Company).where(Company.id == user.companyId))
+        company = res.scalar_one_or_none()
+        
+        if not company or company.status != 'active':
+            status_label = company.status if company else 'inactive'
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Login blocked: Your company account is {status_label}. Please contact support."
+            )
+            
+        if company.expiryDate and datetime.now(timezone.utc).replace(tzinfo=None) > company.expiryDate:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Login blocked: Your subscription has expired. Please renew to continue."
+            )
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(
