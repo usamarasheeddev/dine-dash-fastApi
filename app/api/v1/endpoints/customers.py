@@ -8,7 +8,7 @@ from app.api import deps
 from app.models.customers import Customer, CustomerLedger
 from app.models.orders import Order
 from app.models.core import User
-from app.schemas.customers import Customer as CustomerSchema, CustomerCreate, Ledger as LedgerSchema
+from app.schemas.customer import CustomerOut as CustomerSchema, CustomerCreate, CustomerLedgerOut as LedgerSchema
 
 router = APIRouter()
 

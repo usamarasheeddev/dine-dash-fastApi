@@ -90,7 +90,7 @@ async def add_stock_movement(
     if m_type == 'addition':
         quantity_change = quantity
         new_stock = previous_stock + quantity
-    elif m_type == 'deduction':
+    elif m_type == 'deduction' or m_type == 'waste':
         quantity_change = -quantity
         new_stock = previous_stock - quantity
         if new_stock < 0: new_stock = 0

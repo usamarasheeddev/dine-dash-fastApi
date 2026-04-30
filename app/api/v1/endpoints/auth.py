@@ -1,6 +1,8 @@
-from datetime import timedelta
-from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import timedelta, datetime, timezone
+import secrets
+import hashlib
+from typing import Any, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -8,7 +10,13 @@ from app.api import deps
 from app.core import security
 from app.core.config import settings
 from app.models.core import User, ServiceRequest
-from app.schemas.core import Token, LoginRequest, UserUpdate
+from app.schemas.auth import (
+    Token, 
+    LoginRequest, 
+    UserUpdate, 
+    ForgotPasswordRequest, 
+    ResetPasswordRequest
+)
 from app.schemas.business import ServiceRequestCreate
 
 router = APIRouter()
@@ -73,7 +81,7 @@ async def login(
         "token_type": "bearer",
         "user_details": {
             "id": user.id,
-            "username": user.name,
+            "username": user.username,
             "email": user.email,
             "user_role": user.role,
             "companyId": user.companyId
@@ -138,9 +146,9 @@ async def update_profile(
         current_user.password = security.get_password_hash(newPassword)
         
     if username:
-        current_user.name = username
+        current_user.username = username
     if fullName:
-        current_user.name = fullName # Mapping name to fullName
+        current_user.username = fullName # Mapping name to fullName
     if email:
         result = await db.execute(select(User).where(User.email == email, User.id != current_user.id))
         if result.scalar_one_or_none():
@@ -174,8 +182,8 @@ async def get_me(
         "data": {
             "user_details": {
                 "id": current_user.id,
-                "username": current_user.name,
-                "fullName": current_user.name, # Node uses fullName
+                "username": current_user.username,
+                "fullName": current_user.username, # Node uses fullName
                 "phone": "", # Add phone to User model if needed
                 "email": current_user.email,
                 "user_role": current_user.role,
@@ -183,3 +191,104 @@ async def get_me(
             }
         }
     }
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(deps.get_db)
+) -> Any:
+    """
+    Request a password reset link
+    """
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="There is no user with that email address."
+        )
+
+    # Generate token
+    reset_token = secrets.token_hex(32)
+    
+    # Hash token before saving to database
+    hashed_token = hashlib.sha256(reset_token.encode()).hexdigest()
+    user.resetPasswordToken = hashed_token
+    user.resetPasswordExpires = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1)
+
+    db.add(user)
+    await db.commit()
+
+    # Get origin from headers
+    origin = request.headers.get("origin")
+    if not origin:
+        # Fallback if origin is missing (e.g. some curl requests)
+        origin = "http://localhost:5173" # Default Vite port
+
+    reset_url = f"{origin}/reset-password/{reset_token}"
+    
+    message = f"You are receiving this email because you (or someone else) have requested the reset of a password. Please use the following link to reset your password: \n\n {reset_url}"
+    html = f"""
+    <p>You requested a password reset</p>
+    <p>Click this <a href="{reset_url}">link</a> to set a new password.</p>
+    <p>This link is valid for 1 hour.</p>
+    """
+
+    try:
+        from app.utils.email import sendEmail
+        await sendEmail({
+            "email": user.email,
+            "subject": "Password Reset Token",
+            "message": message,
+            "html": html
+        })
+        return {"success": True, "message": "Email sent"}
+    except Exception as e:
+        user.resetPasswordToken = None
+        user.resetPasswordExpires = None
+        db.add(user)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Email could not be sent"
+        )
+
+@router.put("/reset-password/{token}")
+async def reset_password(
+    token: str,
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(deps.get_db)
+) -> Any:
+    """
+    Reset password using token
+    """
+    hashed_token = hashlib.sha256(token.encode()).hexdigest()
+    
+    # Use UTC for comparison
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    
+    result = await db.execute(
+        select(User).where(
+            User.resetPasswordToken == hashed_token,
+            User.resetPasswordExpires > now
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token is invalid or has expired"
+        )
+
+    # Set new password
+    user.password = security.get_password_hash(body.password)
+    user.resetPasswordToken = None
+    user.resetPasswordExpires = None
+
+    db.add(user)
+    await db.commit()
+
+    return {"success": True, "message": "Password reset successfully"}

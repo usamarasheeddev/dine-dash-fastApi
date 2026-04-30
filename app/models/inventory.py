@@ -28,7 +28,7 @@ class InventoryLedger(Base, TimestampMixin):
     companyId: Mapped[int] = mapped_column(Integer, ForeignKey("Companies.id"))
     userId: Mapped[int] = mapped_column(Integer, ForeignKey("Users.id"))
     date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    type: Mapped[str] = mapped_column(String) # deduction, addition, adjustment
+    type: Mapped[str] = mapped_column(String) # deduction, addition, adjustment, waste
     quantityChange: Mapped[float] = mapped_column(DECIMAL(10, 2))
     previousStock: Mapped[float] = mapped_column(DECIMAL(10, 2))
     newStock: Mapped[float] = mapped_column(DECIMAL(10, 2))

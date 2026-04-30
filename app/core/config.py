@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASS: Optional[str] = None
     SMTP_FROM: Optional[str] = None
+    FROM_NAME: str = "Dine & Dash POS"
+    FROM_EMAIL: Optional[str] = None
+    BACKEND_CORS_ORIGINS: list[str] = ["*"]
     
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

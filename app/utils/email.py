@@ -23,7 +23,7 @@ async def sendEmail(options):
     smtp_user = settings.SMTP_USER
     smtp_pass = settings.SMTP_PASS
     from_name = settings.FROM_NAME
-    from_email = settings.FROM_EMAIL or smtp_user
+    from_email = settings.FROM_EMAIL or settings.SMTP_FROM or smtp_user
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = options.get("subject")

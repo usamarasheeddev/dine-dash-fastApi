@@ -7,5 +7,5 @@ class Base(DeclarativeBase):
     pass
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    createdAt: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updatedAt: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

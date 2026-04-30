@@ -44,11 +44,10 @@ class User(Base, TimestampMixin):
     __tablename__ = "Users"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String)
+    username: Mapped[str] = mapped_column(String)
     email: Mapped[str] = mapped_column(String, unique=True, index=True)
     password: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String, default="user")
-    branchId: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("Branches.id"))
     companyId: Mapped[int] = mapped_column(Integer, ForeignKey("Companies.id"))
     resetPasswordToken: Mapped[Optional[str]] = mapped_column(String)
     resetPasswordExpires: Mapped[Optional[datetime]] = mapped_column(DateTime)
