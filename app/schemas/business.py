@@ -51,6 +51,7 @@ class InventoryCreate(InventoryBase):
 
 class Inventory(InventoryBase):
     id: int
+    totalWaste: float = 0.0
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

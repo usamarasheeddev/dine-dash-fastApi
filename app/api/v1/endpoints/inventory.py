@@ -13,18 +13,38 @@ from app.schemas.business import Inventory as InventorySchema, InventoryCreate, 
 
 router = APIRouter()
 
+from sqlalchemy import select, func
+from sqlalchemy.orm import joinedload
+
 @router.get("/", response_model=List[InventorySchema])
 async def get_items(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    # Matching Node logic: include linkedProduct
-    query = select(InventoryItem).where(InventoryItem.companyId == current_user.companyId).options(
-        joinedload(InventoryItem.linkedProduct) # Note: Need to verify relationship name in model
-    ).order_by(InventoryItem.created_at.desc())
+    # Subquery to calculate total waste
+    waste_subquery = (
+        select(func.coalesce(func.sum(func.abs(InventoryLedger.quantityChange)), 0))
+        .where(InventoryLedger.inventoryItemId == InventoryItem.id)
+        .where(InventoryLedger.type == 'waste')
+        .scalar_subquery()
+    )
+    
+    query = select(
+        InventoryItem, 
+        waste_subquery.label("totalWaste")
+    ).where(
+        InventoryItem.companyId == current_user.companyId
+    ).options(
+        joinedload(InventoryItem.linkedProduct)
+    ).order_by(InventoryItem.createdAt.desc())
     
     result = await db.execute(query)
-    return result.scalars().all()
+    items_with_waste = []
+    for item, total_waste in result.all():
+        item.totalWaste = float(total_waste)
+        items_with_waste.append(item)
+        
+    return items_with_waste
 
 @router.post("/", response_model=InventorySchema)
 async def create_item(

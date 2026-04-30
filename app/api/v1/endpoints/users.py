@@ -60,7 +60,12 @@ async def update_staff(
         res = await db.execute(select(User).where(User.email == user_in["email"]))
         if res.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email already exists")
-            
+    if "status" in user_in and user_in["status"] == "inactive":
+        if staff.id == current_user.id:
+            raise HTTPException(status_code=400, detail="You cannot deactivate your own account.")
+        if staff.role == "admin" and current_user.role != "superadmin":
+            raise HTTPException(status_code=400, detail="Admin accounts cannot be deactivated.")
+
     for field, value in user_in.items():
         if field == "password" and value:
             setattr(staff, "password", get_password_hash(value))
@@ -84,6 +89,11 @@ async def delete_staff(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff member not found")
         
+    if staff.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account.")
+    if staff.role == "admin" and current_user.role != "superadmin":
+        raise HTTPException(status_code=400, detail="Admin accounts cannot be deleted.")
+
     await db.delete(staff)
     await db.commit()
     return {"message": "Staff member removed successfully"}
